@@ -1,0 +1,32 @@
+[package]
+name = "contract"
+version = "0.1.0"
+authors = ["Andrew Osheroff <andrewosh@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+owasm-ethereum = "0.7"
+owasm-abi = { git = "https://github.com/oasislabs/owasm-abi" }
+owasm-abi-derive = { git = "https://github.com/oasislabs/owasm-abi" }
+
+serde = "1.0.70"
+serde_json = "1.0.24"
+serde_derive = "1.0.70"
+
+# Core game logic dependencies
+game-engine = { git = "https://github.com/oasis-game-framework/oasis-game-framework", branch = "1.0.0-alpha" }
+game-contract = { git = "https://github.com/oasis-game-framework/oasis-game-framework", branch = "1.0.0-alpha" }
+core = { path = "../../core/game" }
+
+[dependencies.owasm-std]
+version = "0.13.0"
+features = ["std"]
+
+[package.metadata.oasis]
+max-mem = 6108864
+
+[profile.release]
+opt-level = 'z'
+lto = true

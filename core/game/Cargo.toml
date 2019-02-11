@@ -1,0 +1,20 @@
+[package]
+name = "core"
+version = "0.1.0"
+authors = ["Andrew Osheroff <andrewosh@gmail.com>"]
+
+[dependencies]
+quick-error = "1.2.2"
+serde = "1.0.70"
+serde_json = "1.0.24"
+serde_derive = "1.0.70"
+lazy_static = "1.1.0"
+game-engine = { git = "https://github.com/oasis-game-framework/oasis-game-framework", branch = "1.0.0-alpha" }
+game-engine-derive = { git = "https://github.com/oasis-game-framework/oasis-game-framework", branch = "1.0.0-alpha" }
+
+[dependencies.rand]
+version = "0.6.4"
+features = ["wasm-bindgen"]
+
+[lib]
+crate-type = ["lib"]

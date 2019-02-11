@@ -1,0 +1,17 @@
+[package]
+name = "client"
+version = "0.1.0"
+authors = ["Andrew Osheroff <andrewosh@gmail.com>"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+console_error_panic_hook = "0.1.5"
+game-engine = { git = "https://github.com/oasis-game-framework/oasis-game-framework", branch = "1.0.0-alpha" }
+client-proxy = { git = "https://github.com/oasis-game-framework/oasis-game-client-proxy", branch = "1.0.0-alpha" }
+core = { path = "../game" }
+
+[dependencies.wasm-bindgen]
+version = "0.2.33"
+features = ["serde-serialize"]
