@@ -30,7 +30,7 @@ class Board extends React.Component {
   };
 
   onClick = id => {
-    this.props.moves.blackjack_move(id)
+    this.props.moves.poker_move(id)
   };
 
   format (cellValue) {
@@ -42,24 +42,37 @@ class Board extends React.Component {
     let gameover = this.props.ctx.gameover
     if (gameover) {
       let victoryInfo = {};
-      if (!gameover.winner) {
-        var color = 'orange'
-        var text = 'It\'s a draw! ' + gameover.scores.toString()
-      } else {
-        color = (gameover.winner == this.props.playerID || this.props.isSpectating) ? 'green' : 'red'
-        text = `Player ${gameover.winner} won! `  + gameover.scores.toString()
-      }
+      var color = (gameover.winner == this.props.playerID || this.props.isSpectating) ? 'green' : 'red'
+      var text = `Player ${gameover.winner} won! `
       victoryInfo.winner = <div className={color} id="winner">{text}</div>;
-      victoryInfo.color = color
-      victoryInfo.cells = new Set(gameover.winning_cells)
       return victoryInfo
     }
     return null
   }
 
-  getCardInfo () {
+  getPotInfo() {
+    return this.props.G.hand_pot.toString()
+  }
+
+  getChipInfo() {
+    return this.props.G.chips.toString()
+  }
+
+  getChipTableInfo() {
+    return this.props.G.chip_table.toString()
+  }
+
+  getTableInfo () {
+    return this.props.G.card_table
+  }
+
+  getHandInfo () {
     let cards = this.props.G.hands
     return cards[this.props.playerID - 1]
+  }
+
+  formatLastMove() {
+    return this.props.G.last_move
   }
 
   getCellClass () {
@@ -70,11 +83,10 @@ class Board extends React.Component {
 
     let victoryInfo = this.getVictoryInfo() 
     let tbody = [];
-
     let cells = [];
     
     // Hit
-    let id = 'Hit';
+    let id = 'Fold';
     cells.push(
       <td
         key={id}
@@ -86,7 +98,7 @@ class Board extends React.Component {
     );
 
     // Stay
-    id = 'Stay';  
+    id = 'Check';  
     cells.push(
       <td
         key={id}
@@ -97,18 +109,43 @@ class Board extends React.Component {
       </td>
     );
 
+    // Stay
+    id = 'Bet';  
+    cells.push(
+      <td
+        key={id}
+        className={'active'}
+        onClick={() => this.onClick(2)}
+      >
+        {id}
+      </td>
+    );
+
+            // Stay
+    id = 'All in';  
+    cells.push(
+      <td
+        key={id}
+        className={'active'}
+        onClick={() => this.onClick(3)}
+      >
+        {id}
+      </td>
+    );
+
     tbody.push(<tr key={'m'}>{cells}</tr>);
 
-    let player = null;
-    if (this.props.playerID) {
-      player = <div id="player">Player: {this.props.playerID}</div>;
-    }
-
-    let cardInfo = this.getCardInfo()
-
+    let tableInfo = this.getTableInfo();
+    let handInfo = this.getHandInfo();
+    
     let rendered = (
       <div className="flex flex-column justify-center items-center">
-        <Hand cards={cardInfo} hidden={false} style={defHandStyle} />
+        <Hand cards={tableInfo} hidden={false} style={defHandStyle} />
+        <Hand cards={handInfo} hidden={false} style={defHandStyle} />
+        <p>Last Move: {this.formatLastMove()}</p>
+        <p>Pot: {this.getPotInfo()}</p>
+        <p>Chips on Table: {this.getChipTableInfo()}</p>
+        <p>Chips: {this.getChipInfo()}</p>
         <table id="board">
           <tbody>{tbody}</tbody>
         </table>

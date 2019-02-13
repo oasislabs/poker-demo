@@ -13,5 +13,5 @@ client-proxy = { git = "https://github.com/oasis-game-framework/oasis-game-clien
 core = { path = "../game" }
 
 [dependencies.wasm-bindgen]
-version = "0.2.33"
+version = "= 0.2.33"
 features = ["serde-serialize"]

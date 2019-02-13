@@ -1,5 +1,5 @@
 {
-  "name": "oasis-tic-tac-toe",
+  "name": "oasis-poker",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -13,6 +13,7 @@
     "babel-core": "^6.26.3",
     "babel-loader": "^7.1.5",
     "babel-plugin-transform-runtime": "^6.23.0",
+    "babel-preset-env": "^1.7.0",
     "babel-preset-react": "^6.24.1",
     "babel-preset-stage-2": "^6.24.1",
     "css-loader": "^1.0.0",
@@ -39,7 +40,6 @@
     "webpack-dev-server": "^3.1.10"
   },
   "dependencies": {
-    "babel-preset-env": "^1.7.0",
     "bindings": "^1.4.0",
     "chalk": "^2.4.1",
     "inherits": "^2.0.3",
