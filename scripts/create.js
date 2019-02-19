@@ -9,19 +9,22 @@ const truffleConfig = require('../truffle-config.js')
 
 let args = minimist(process.argv.slice(2), {
   string: ['bots', 'players'],
-  boolean: ['confidential']
+  boolean: ['confidential'],
+  default: {
+    confidential: true
+  }
 })
 
 module.exports = async function (cb) {
   let network = args.network || 'development'
   let networkConfig = truffleConfig.config[network]
-  let web3c = new Web3c(truffleConfig.networks[network].provider())
+  const provider = truffleConfig.networks[network].provider()
+  let web3c = new Web3c(provider)
   let eventsWeb3c = new Web3c(new Web3.providers.WebsocketProvider(networkConfig.wsEndpoint))
 
   let serverAddress = args.server || artifacts.require('GameServerContract').address
   let players = args.players ? args.players.split(',') : []
   let bots = args.bots ? args.bots.split(',') : []
-  let confidential = (args.confidential !== undefined) ? args.confidential : true
 
   let playerArgs = [...players.map(address => {
     return {
@@ -44,7 +47,7 @@ module.exports = async function (cb) {
     web3c,
     eventsWeb3c,
     account: 0,
-    confidential
+    confidential: args.confidential
   })
 
   try {
