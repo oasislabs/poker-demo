@@ -29,4 +29,5 @@ max-mem = 6108864
 
 [profile.release]
 opt-level = 'z'
+incremental = false
 lto = true
