@@ -70,6 +70,11 @@ module.exports = function (web3, network, artifacts, confidential) {
       }),
       new HtmlWebpackPlugin({
         title: 'Oasis Game'
+      }),
+      new webpack.NormalModuleReplacementPlugin(/env/, function(resource) {
+	if (resource.request === 'env') {
+	  resource.request = '../wasm32-shim'
+	}
       })
     ],
     devtool: 'cheap-eval-source-map',

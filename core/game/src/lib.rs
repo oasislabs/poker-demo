@@ -90,6 +90,7 @@ impl Default for State {
 
 // Returns a ([0-3],[0-12]) idx of the card drawn
 fn draw_cards(deck: &mut CardDeck, seed: [u8; 32], num_cards_needed: u8) -> Vec<Card> {
+    println!("DRAWING CARDS");
     
     let mut rng = ChaChaRng::from_seed(seed);
 
