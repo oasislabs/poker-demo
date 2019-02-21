@@ -14,7 +14,7 @@ extern crate game_engine_derive;
 
 use serde_json::Value;
 use std::error::Error;
-use game_engine::{*, Game as InnerGame};
+use game_engine::*;
 use game_engine_derive::{flow, moves};
 use rand::{Rng, SeedableRng, ChaChaRng};
 
@@ -93,17 +93,12 @@ impl Default for State {
 // Returns a ([0-3],[0-12]) idx of the card drawn
 fn draw_cards(deck: &mut CardDeck, seed: u128, num_cards_needed: u8) -> Vec<Card> {
     
-    let mut rng;
+    let mut seed_arr = [0 as u8; 32];
+    for (i, byte) in seed.to_le_bytes().iter().enumerate() {
+        seed_arr[i] = *byte
+    };
 
-    unsafe {
-
-        let mut seed_arr = [0 as u8; 32];
-        for (i, byte) in seed.to_le_bytes().iter().enumerate() {
-            seed_arr[i] = *byte
-        };
-
-        rng = ChaChaRng::from_seed(seed_arr);
-    }
+    let mut rng = ChaChaRng::from_seed(seed_arr);
 
     let mut num_cards_drawn: u8 = 0;
     let mut card_vec = Vec::new();
@@ -369,6 +364,7 @@ trait Flow {
 
     fn on_turn_begin(&self, state: &mut UserState<State>) 
         -> Result<(), Box<Error>> {
+
         let seed = state.ctx.seed.unwrap();
 
         if state.g.hand_over {
@@ -402,6 +398,9 @@ trait Flow {
     }
 
     fn on_move(&self, state: &mut UserState<State>, _: &Move) -> Result<(), Box<Error>> {
+
+        let bumpable_seed = state.ctx.seed.expect("");
+        state.ctx.seed = Some(bumpable_seed + 1);
 
         // End hand via fold
         let (is_over, fold_winner) = hand_is_over_folded(state);
