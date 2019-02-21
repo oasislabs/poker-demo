@@ -91,14 +91,14 @@ impl Default for State {
 }
 
 // Returns a ([0-3],[0-12]) idx of the card drawn
-fn draw_cards(deck: &mut CardDeck, num_cards_needed: u8) -> Vec<Card> {
+fn draw_cards(deck: &mut CardDeck, seed: u128, num_cards_needed: u8) -> Vec<Card> {
     
     let mut rng;
 
     unsafe {
 
         let mut seed_arr = [0 as u8; 32];
-        for (i, byte) in SEED.to_le_bytes().iter().enumerate() {
+        for (i, byte) in seed.to_le_bytes().iter().enumerate() {
             seed_arr[i] = *byte
         };
 
@@ -181,6 +181,7 @@ fn next_betting_round(state: &mut UserState<State>) {
 }
 
 fn deal_new_hand(state: &mut UserState<State>) {
+    let seed = state.ctx.seed.unwrap();
 
     // Reset all player status
     state.g.needs_action = vec![true; NUM_PLAYERS];
@@ -190,7 +191,7 @@ fn deal_new_hand(state: &mut UserState<State>) {
     // Create initial hand of 2 for all players
     for player in 0..NUM_PLAYERS {
 
-        let player_hand = draw_cards(&mut state.g.cards, 2); 
+        let player_hand = draw_cards(&mut state.g.cards, seed, 2); 
         state.g.hands[player] = player_hand;
     }
     
@@ -368,6 +369,7 @@ trait Flow {
 
     fn on_turn_begin(&self, state: &mut UserState<State>) 
         -> Result<(), Box<Error>> {
+        let seed = state.ctx.seed.unwrap();
 
         if state.g.hand_over {
             deal_new_hand(state);
@@ -380,15 +382,15 @@ trait Flow {
             // Deal cards if needed
             match state.g.card_table.len() {
                 0 => {
-                    state.g.card_table = draw_cards(&mut state.g.cards, 3);
+                    state.g.card_table = draw_cards(&mut state.g.cards, seed, 3);
                     next_betting_round(state);
                 },
                 3 => {
-                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, 1));
+                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, 1));
                     next_betting_round(state);
                 },
                 4 => {
-                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, 1));
+                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, 1));
                     next_betting_round(state);
                 },
                 _ => return Err(Box::new(Errors::InvalidMove)),
