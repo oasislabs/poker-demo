@@ -58,14 +58,15 @@ pub struct State {
     pub hands: Vec<Vec<Card>>,
     pub needs_action: Vec<bool>,
     pub still_in: Vec<bool>,
-    pub first_action: u16,
+    pub dealer: u16,
     pub card_table: Vec<Card>,
     pub chips: Vec<u16>,
     pub chip_table: Vec<u16>,
     pub bet_amount: u16,
     pub hand_pot: u16,
     pub hand_over: bool,
-    pub last_move: String
+    pub last_move: String,
+    pub hand_result: String
 }
 
 impl Default for State {
@@ -78,14 +79,15 @@ impl Default for State {
             hands: vec![Vec::new(), Vec::new()],
             needs_action: vec![true; NUM_PLAYERS],
             still_in: vec![true; NUM_PLAYERS],
-            first_action: 1,
+            dealer: 1,
             card_table: Vec::new(),
             chips: vec![64; NUM_PLAYERS],
             chip_table: vec![0; NUM_PLAYERS],
             bet_amount: 0,
             hand_pot: 0,
             hand_over: true,
-            last_move: String::from("New Hand")
+            last_move: String::from("New Hand"),
+            hand_result: String::from("")
         }
     }
 }
@@ -153,6 +155,19 @@ fn betting_round_is_over(state: &UserState<State>) -> bool {
     true    
 }
 
+fn is_all_in_hand(state: &UserState<State>) -> bool {
+
+    for i in 0..NUM_PLAYERS {
+        
+        if state.g.still_in[i] && state.g.chips[i] == 0 {
+            return true;
+        } 
+    }
+
+    false
+
+}
+
 /**
  * Start the next betting round, ignores all in hands.
  */
@@ -176,12 +191,14 @@ fn next_betting_round(state: &mut UserState<State>) {
 }
 
 fn deal_new_hand(state: &mut UserState<State>) {
-    let seed = state.ctx.seed.unwrap();
-
+    
     // Reset all player status
     state.g.needs_action = vec![true; NUM_PLAYERS];
     state.g.still_in = vec![true; NUM_PLAYERS];
     state.g.hand_over = false;
+    state.g.last_move = String::from("New Hand");
+
+    let seed = state.ctx.seed.unwrap();
 
     // Create initial hand of 2 for all players
     for player in 0..NUM_PLAYERS {
@@ -192,20 +209,32 @@ fn deal_new_hand(state: &mut UserState<State>) {
     
 }
 
-fn payout_and_reset_hand(winner: usize, state: &mut UserState<State>) {
+fn payout_hand(winner: &usize, state: &mut UserState<State>) {
     
     // Pay the winner
     state.g.bet_amount = 0;
     state.g.hand_pot += state.g.chip_table.iter().sum::<u16>();
-    state.g.chips[winner] += state.g.hand_pot;
+    state.g.chips[*winner] += state.g.hand_pot;
     state.g.chip_table = vec![0; NUM_PLAYERS];
     state.g.hand_pot = 0;
+    state.g.last_move.push_str(&" - HAND OVER");
     
-    state.g.first_action = (state.g.first_action % state.ctx.num_players) + 1;
+    // Give all remaining players a turn to confirm
+    for i in 0..NUM_PLAYERS {
+        if state.g.still_in[i] {
+            state.g.needs_action[i] = true;
+        }
+    }
 
-    // Find next non-eliminated player
-    while state.g.chips[state.g.first_action as usize - 1] <= 0 {
-        state.g.first_action = (state.g.first_action % state.ctx.num_players) + 1;
+}
+
+fn reset_hand(state: &mut UserState<State>) {
+
+    // Advance the dealer
+    state.g.dealer = (state.g.dealer % state.ctx.num_players) + 1;
+
+    while state.g.chips[state.g.dealer as usize - 1] <= 0 {
+        state.g.dealer = (state.g.dealer % state.ctx.num_players) + 1;
     }
 
     // Clear the table and shuffle the deck
@@ -257,35 +286,37 @@ trait Moves {
 
                 // Standard bet/raise
                 2 => {
-                    
+
                     // Raise the required bet
                     if state.g.bet_amount == 0 {
                         
                         state.g.bet_amount = STANDARD_BET_SIZE;
-                        
-                        let mut move_log = String::from("Bet ");
-                        move_log.push_str(&state.g.bet_amount.to_string());
-                        state.g.last_move = move_log; 
+                        state.g.last_move = String::from(format!("Bet {}", state.g.bet_amount));
+
                     } else {
                         
                         state.g.bet_amount *= 2;
-
-                        let mut move_log = String::from("Raise ");
-                        move_log.push_str(&state.g.bet_amount.to_string());
-                        state.g.last_move = move_log;
+                        state.g.last_move = String::from(format!("Raise {}", state.g.bet_amount));
                     }
                     
-                    // Pay for it
-                    let needed_bet = state.g.bet_amount - state.g.chip_table[player_idx];
-                    state.g.chip_table[player_idx] += needed_bet;
-                    state.g.chips[player_idx] -= needed_bet;
-
                     // Since the bet has been raised, everyone who is still in the hand needs action.
+                    // Check if a player needs to go all in
                     for i in 0..NUM_PLAYERS {
                         if state.g.still_in[i] {
+
+                            if (state.g.chips[i] + state.g.chip_table[i]) <= state.g.bet_amount {
+                                state.g.bet_amount = state.g.chips[i] + state.g.chip_table[i];
+                                state.g.last_move = String::from(format!("All In {}", state.g.bet_amount));
+                            }
+
                             state.g.needs_action[i] = true;
                         }
                     }
+
+                    // Pay for it, match the bet amount
+                    let needed_bet = state.g.bet_amount - state.g.chip_table[player_idx];
+                    state.g.chip_table[player_idx] += needed_bet;
+                    state.g.chips[player_idx] -= needed_bet;
 
                     state.g.needs_action[player_idx] = false;
                     return Ok(());
@@ -295,21 +326,28 @@ trait Moves {
                 // All in
                 3 => {
                     
-                    // TODO: Handle case when others should actually be all in, and we don't bet the full amount
+                    // Try betting your whole stack.
                     state.g.bet_amount = state.g.chips[player_idx];
-                    state.g.chip_table[player_idx] += state.g.chips[player_idx];
-                    state.g.chips[player_idx] = 0;
 
                     // Since the bet has been raised, everyone who is still in the hand needs action.
+                    // Check if a different player needs to go all in
                     for i in 0..NUM_PLAYERS {
                         if state.g.still_in[i] {
+
+                            if (state.g.chips[i] + state.g.chip_table[i]) <= state.g.bet_amount {
+                                state.g.bet_amount = state.g.chips[i] + state.g.chip_table[i];
+                            }
+
                             state.g.needs_action[i] = true;
                         }
                     }
+                    
+                    // Needed in case someone else is pushed all in.
+                    let needed_bet = state.g.bet_amount - state.g.chip_table[player_idx];
+                    state.g.chip_table[player_idx] += needed_bet;
+                    state.g.chips[player_idx] -= needed_bet;
 
-                    let mut move_log = String::from("All In ");
-                    move_log.push_str(&state.g.bet_amount.to_string());
-                    state.g.last_move = move_log;
+                    state.g.last_move = String::from(format!("All In {}", state.g.bet_amount));
                     state.g.needs_action[player_idx] = false;
                     return Ok(());
 
@@ -327,6 +365,20 @@ trait Moves {
                     state.g.needs_action[player_idx] = false;
                     return Ok(());
                 },
+
+                // Confirm hand and proceed
+                99 => {
+
+                    state.g.last_move = String::from("HAND OVER");
+                    state.g.needs_action[player_idx] = false;
+
+                    if betting_round_is_over(state) {
+                        reset_hand(state);
+                    }
+
+                    return Ok(());
+
+                }
 
                 _ => return Err(Box::new(Errors::InvalidMove)),
             }
@@ -350,14 +402,15 @@ trait Flow {
             hands: vec![Vec::new(), Vec::new()],
             needs_action: vec![true; NUM_PLAYERS as usize],
             still_in: vec![true; NUM_PLAYERS as usize],
-            first_action: 1,
+            dealer: 1,
             card_table: Vec::new(),
             chips: vec![64; NUM_PLAYERS as usize],
             chip_table: vec![0; NUM_PLAYERS as usize],
             bet_amount: 0,
             hand_pot: 0,
             hand_over: true,
-            last_move: String::from("New Hand")
+            last_move: String::from("New Hand"),
+            hand_result: String::from("")
         }
 
     }
@@ -377,14 +430,17 @@ trait Flow {
 
             // Deal cards if needed
             match state.g.card_table.len() {
+                // Flop
                 0 => {
                     state.g.card_table = draw_cards(&mut state.g.cards, seed, 3);
                     next_betting_round(state);
                 },
+                // Turn
                 3 => {
                     state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, 1));
                     next_betting_round(state);
                 },
+                // River
                 4 => {
                     state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, 1));
                     next_betting_round(state);
@@ -399,58 +455,76 @@ trait Flow {
 
     fn on_move(&self, state: &mut UserState<State>, _: &Move) -> Result<(), Box<Error>> {
 
+        // Manually advance the random seed
         let bumpable_seed = state.ctx.seed.expect("");
         state.ctx.seed = Some(bumpable_seed + 1);
 
         // End hand via fold
         let (is_over, fold_winner) = hand_is_over_folded(state);
         if is_over {
-            payout_and_reset_hand(fold_winner, state);
+            payout_hand(&fold_winner, state);
+            state.g.hand_result = String::from(format!("Player {} wins by fold", fold_winner + 1));
             return Ok(());
         }
         
         // End hand via evaluation
-        if betting_round_is_over(state) && state.g.card_table.len() == 5 {
+        if betting_round_is_over(state) {
             
-            // TODO: hand resolution
-            let mut winner = CardRanking{
-                player: 0,
-                hand: 0,
-                tiebreak: vec![0]
-                };
+            // Automatically deal all cards if a player has no chips
+            if is_all_in_hand(state) && state.g.card_table.len() < 5 {
+                let seed = state.ctx.seed.unwrap();
+                let cards_needed = 5 - state.g.card_table.len() as u8;
+                state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, cards_needed));
+            }
+            
+            if state.g.card_table.len() == 5 {
+            
+                // Store the winning hand
+                let mut winner = CardRanking{
+                    player: 0,
+                    hand: 0,
+                    tiebreak: vec![0]
+                    };
 
-            for i in 0..(state.ctx.num_players as usize) {
-                
-                if state.g.still_in[i] {
+                for i in 0..(state.ctx.num_players as usize) {
                     
-                    state.g.hands[i].extend_from_slice(&state.g.card_table);
-                    let hand_rank = resolver::evaluate_best_hand(i, &state.g.hands[i].clone());
-                    
-                    println!("Player {} best hand is {}-{:?}", hand_rank.player, hand_rank.hand, hand_rank.tiebreak);
+                    if state.g.still_in[i] {
+                        
+                        let mut working_hand = state.g.hands[i].clone();
+                        working_hand.extend_from_slice(&state.g.card_table);
+                        let hand_rank = resolver::evaluate_best_hand(i, &working_hand);
+                        
+                        println!("Player {} best hand is {}-{:?}", hand_rank.player, 
+                            resolver::hand_to_string(&hand_rank.hand), hand_rank.tiebreak);
 
-                    if hand_rank.hand > winner.hand {
-                        winner = hand_rank;
-                    } else if hand_rank.hand == winner.hand {
-                        println!("Need tiebreaker to resolve hand");
-                        // Tiebreakers
-                        for j in 0..hand_rank.tiebreak.len() {
-                            if hand_rank.tiebreak[j] > winner.tiebreak[j] {
-                                winner = hand_rank;
-                                break;
-                            } else if hand_rank.tiebreak[j] < winner.tiebreak[j] {
-                                break;
+                        if hand_rank.hand > winner.hand {
+                            winner = hand_rank;
+                        } else if hand_rank.hand == winner.hand {
+
+                            // Tiebreakers
+                            for j in 0..hand_rank.tiebreak.len() {
+                                if hand_rank.tiebreak[j] > winner.tiebreak[j] {
+                                    winner = hand_rank;
+                                    break;
+                                } else if hand_rank.tiebreak[j] < winner.tiebreak[j] {
+                                    break;
+                                }
                             }
+                            
+                            // TODO: Hand is completely tied, do a split pot.
+                        
                         }
                         
-                        // TODO: Hand is completely tied, do a split pot.
-                    
                     }
-                    
                 }
-            }
 
-            println!("Hand was won by player {} with hand ranking {}", winner.player, winner.hand);
-            payout_and_reset_hand(winner.player, state);
+                payout_hand(&winner.player, state);
+
+                let hand_label = resolver::hand_to_string(&winner.hand);
+                println!("Hand was won by player {} with hand ranking {}", winner.player + 1, hand_label);
+                state.g.hand_result = String::from(format!("Player {} wins with {}", winner.player + 1, hand_label));
+
+            }
 
         }
 
@@ -467,12 +541,11 @@ trait Flow {
         };
 
         let mut next_candidate = (action_player + 1) % state.ctx.num_players;
-
         let mut move_counter = 0;
 
         // Not 0-indexed, required to be 1 or 2
         if state.g.hand_over || betting_round_is_over(state) {
-            next_to_play.push(state.g.first_action);
+            next_to_play.push(state.g.dealer);
             return Some(next_to_play);
         } 
 

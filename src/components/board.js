@@ -75,74 +75,127 @@ class Board extends React.Component {
     return this.props.G.last_move
   }
 
+  formatHandResult() {
+    return this.props.G.hand_result
+  }
+
   getCellClass () {
     return 'active'
   }
 
   render() {
 
+    let lastMove = this.formatLastMove();
+
     let victoryInfo = this.getVictoryInfo() 
     let tbody = [];
     let cells = [];
     
     // Hit
-    let id = 'Fold';
-    cells.push(
-      <td
-        key={id}
-        className={'active'}
-        onClick={() => this.onClick(0)}
-      >
-        {id}
-      </td>
-    );
+    let id = '';
+    let displayMessage = [];
 
-    // Stay
-    id = 'Check';  
-    cells.push(
-      <td
-        key={id}
-        className={'active'}
-        onClick={() => this.onClick(1)}
-      >
-        {id}
-      </td>
-    );
+    if (lastMove.indexOf("HAND OVER") !== -1) {
 
-    // Stay
-    id = 'Bet';  
-    cells.push(
-      <td
-        key={id}
-        className={'active'}
-        onClick={() => this.onClick(2)}
-      >
-        {id}
-      </td>
-    );
+      id = 'Confirm';
+      cells.push(
+        <td
+          key={id}
+          className={'active'}
+          onClick={() => this.onClick(99)}
+        >
+          {id}
+        </td>
+      );
+    
+      let hand_result = this.formatHandResult();
 
-            // Stay
-    id = 'All in';  
-    cells.push(
-      <td
-        key={id}
-        className={'active'}
-        onClick={() => this.onClick(3)}
-      >
-        {id}
-      </td>
-    );
+      displayMessage.push(
+        <p>Hand Result: {hand_result}</p>
+      );
+
+    } else {  
+
+      // Only fold if responding to a bet, raise or all in
+      let responding = (lastMove.indexOf("Bet") !== -1 || lastMove.indexOf("Raise") !== -1 || lastMove.indexOf("All") !== -1);
+
+      if (responding) {
+        id = 'Fold';
+        cells.push(
+          <td
+            key={id}
+            className={'active'}
+            onClick={() => this.onClick(0)}
+          >
+            {id}
+          </td>
+        );
+      }
+
+      // CHECK or CALL
+      if (responding) {
+        id = 'Call';
+      } else {
+        id = 'Check';
+      }
+        
+      cells.push(
+        <td
+          key={id}
+          className={'active'}
+          onClick={() => this.onClick(1)}
+        >
+          {id}
+        </td>
+      );
+
+      // If all in, no more additional bet, raise or all in.
+      if (lastMove.indexOf("All") == -1) {
+
+        // BET or RAISE
+        if (responding) {
+          id = 'Raise';
+        } else {
+          id = 'Bet';
+        }
+        cells.push(
+          <td
+            key={id}
+            className={'active'}
+            onClick={() => this.onClick(2)}
+          >
+            {id}
+          </td>
+        );
+
+        // All in, exists regardless of responding or not
+        id = 'All in';  
+        cells.push(
+          <td
+            key={id}
+            className={'active'}
+            onClick={() => this.onClick(3)}
+          >
+            {id}
+          </td>
+        );
+
+      }
+
+    }
 
     tbody.push(<tr key={'m'}>{cells}</tr>);
 
     let tableInfo = this.getTableInfo();
     let handInfo = this.getHandInfo();
-    
+
+    displayMessage.push(<p>Last Move: {lastMove}</p>)
+
     let rendered = (
       <div className="flex flex-column justify-center items-center">
         <Hand cards={tableInfo} hidden={false} style={defHandStyle} />
         <Hand cards={handInfo} hidden={false} style={defHandStyle} />
-        <p>Last Move: {this.formatLastMove()}</p>
+        {displayMessage}
         <p>Pot: {this.getPotInfo()}</p>
         <p>Chips on Table: {this.getChipTableInfo()}</p>
         <p>Chips: {this.getChipInfo()}</p>

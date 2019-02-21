@@ -16,6 +16,22 @@ const TWO_PAIR : u8 = 2;
 const PAIR : u8 = 1;
 const HIGH : u8 = 0;
 
+const HAND_TO_STRING: [(u8, &str); 9] =
+    [(HIGH, "High Card"),
+     (PAIR, "Pair"),
+     (TWO_PAIR, "Two Pair"),
+     (TRIPLE, "Triple"),
+     (STRAIGHT, "Straight"),
+     (FLUSH, "Flush"),
+     (FULL_HOUSE, "Full House"),
+     (QUADS, "Quads"),     
+     (STRAIGHT_FLUSH, "Straight Flush")];
+
+pub fn hand_to_string(hand: &u8) -> String {
+    let hand_to_string_map : HashMap<u8, &str> = HAND_TO_STRING.iter().cloned().collect();
+    return String::from(*hand_to_string_map.get(hand).expect(""));
+}
+
 // Given a list of 7 card combinations, return the best hand
 // Leave an arbitrary Vec in the return value for tiebreaking
 pub fn evaluate_best_hand(player: usize, hand: &Vec<Card>) -> CardRanking {
