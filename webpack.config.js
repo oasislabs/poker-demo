@@ -35,21 +35,22 @@ module.exports = function (web3, network, artifacts, confidential) {
           use: [ 'style-loader', 'css-loader' ]
         },
         {
-          test: /\.(png|svg|jpg|gif)$/,
+          test: /\.(png|jpg|gif)$/,
           use: [
            'file-loader'
           ]
-        }
-	      /*
-        {
-	  test: /\.wasm$/,
-	  type: "javascript/auto",
-	  loader: "file-loader",
-	  options: {
-	    publicPath: "dist/"
-	  }
-        }
-	*/
+        },
+         {
+          test: /\.(svg)$/,
+          use: [
+            {
+              loader: 'file-loader',
+              options: {
+                name: '[name].[ext]'
+              }
+            }
+          ]
+         }
       ]
     },
     resolve: {

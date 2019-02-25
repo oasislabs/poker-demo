@@ -7,16 +7,14 @@
  */
 
 import React from 'react';
-import {Hand, Card, CardBack} from 'react-deck-o-cards'
 import PropTypes from 'prop-types';
 import { GameInfo } from 'oasis-game-components';
 import './board.css';
+import './cardstyles.css';
 
-const defHandStyle = {
-  maxHeight:'30vh',
-  minHeight:'30vh',
-  padding: '1vh',
-};
+// Import all the cards in src/assets/cards directory. This is needed for webpack
+function requireAll(r) { r.keys().forEach(r); }
+requireAll(require.context('../assets/cards', true, /\.svg$/));
 
 class Board extends React.Component {
 
@@ -62,13 +60,27 @@ class Board extends React.Component {
     return this.props.G.chip_table.toString()
   }
 
-  getTableInfo () {
-    return this.props.G.card_table
-  }
+  renderCards(handJSON) {
 
-  getHandInfo () {
-    let cards = this.props.G.hands
-    return cards[this.props.playerID - 1]
+    if (handJSON.length == 0) {
+      return;
+    }
+
+    var renderCards = [];
+
+    for (var i = 0; i < handJSON.length; i++) {
+      renderCards.push(
+        <img class='card' src={this.cardJSONtoString(handJSON[i])}></img>
+      )
+    }
+
+    let rendered = (
+      <div class="hand hhand active-hand">
+      {renderCards}
+      </div>
+    );
+
+    return rendered
   }
 
   formatLastMove() {
@@ -79,8 +91,49 @@ class Board extends React.Component {
     return this.props.G.hand_result
   }
 
-  getCellClass () {
-    return 'active'
+  // Ranks come in from value 1-13.
+  cardJSONtoString(card) {
+    let rank = card.rank;
+    let suit = card.suit;
+
+    var suitChar = '';
+    switch (suit) {
+      case 0: 
+        suitChar = 'D';
+        break;
+      case 1: 
+        suitChar = 'C';
+        break;
+      case 2: 
+        suitChar = 'H';
+        break;
+      case 3: 
+        suitChar = 'S';
+        break;
+      default:
+        break;
+    }
+
+    var rankString = "";
+    switch (rank) {
+      case 13: 
+        rankString = 'A';
+        break;
+      case 12: 
+        rankString = 'K';
+        break;
+      case 11: 
+        rankString = 'Q';
+        break;
+      case 10: 
+        rankString = 'J';
+        break;
+      default:
+        rankString = (rank + 1).toString()
+        break;
+    }
+
+    return rankString + suitChar + '.svg' 
   }
 
   render() {
@@ -186,15 +239,15 @@ class Board extends React.Component {
 
     tbody.push(<tr key={'m'}>{cells}</tr>);
 
-    let tableInfo = this.getTableInfo();
-    let handInfo = this.getHandInfo();
+    let tableInfo = this.renderCards(this.props.G.card_table)
+    let handInfo = this.renderCards(this.props.G.hands[this.props.playerID - 1])
 
     displayMessage.push(<p>Last Move: {lastMove}</p>)
 
     let rendered = (
       <div className="flex flex-column justify-center items-center">
-        <Hand cards={tableInfo} hidden={false} style={defHandStyle} />
-        <Hand cards={handInfo} hidden={false} style={defHandStyle} />
+        {tableInfo}
+        {handInfo}
         {displayMessage}
         <p>Pot: {this.getPotInfo()}</p>
         <p>Chips on Table: {this.getChipTableInfo()}</p>
