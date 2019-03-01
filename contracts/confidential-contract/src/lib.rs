@@ -25,9 +25,9 @@ trait GameServerContract {
         self.NewGame(id, _players);
     }
 
-    fn ready(&mut self, _game_id: u64, _player_id: u64, _entropy: Vec<u8>) {
+    fn ready(&mut self, _game_id: u64, _player_id: u64, token: Vec<u8>, _entropy: Vec<u8>) {
         let mut server = ServerFactory::create();
-        let started = server.ready(_game_id, _player_id, &mut _entropy.clone()).expect("Could not set ready status");
+        let started = server.ready(_game_id, _player_id, token, &mut _entropy.clone()).expect("Could not set ready status");
         if started {
             self.GameStarted(_game_id);
         }
