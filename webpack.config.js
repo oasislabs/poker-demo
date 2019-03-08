@@ -8,13 +8,20 @@ const pages = fs.readdirSync('./src/pages').filter(name => !name.startsWith('.')
 module.exports = function (web3, network, artifacts, confidential) {
   let networkConfig = truffleConfig.config[network]
 
-  let contract = artifacts.require('GameServerContract')
+  try {
+    var contract = artifacts.require('GameServerContract')
+    var address = contract.address
+  } catch (err) {
+    console.warn('Warning: No network deployment was detected, so only building singleplayer mode.')
+  }
+
+  let entry = !contract ? { singleplayer : './src/pages/singleplayer/index.js' } : pages.reduce((acc, page) => {
+    acc[page] = `./src/pages/${page}/index.js`;
+    return acc;
+  }, {})
 
   return {
-    entry: pages.reduce((acc, page) => {
-      acc[page] = `./src/pages/${page}/index.js`;
-      return acc;
-    }, {}),
+    entry,
     module: {
       rules: [
         {
@@ -28,21 +35,22 @@ module.exports = function (web3, network, artifacts, confidential) {
           use: [ 'style-loader', 'css-loader' ]
         },
         {
-          test: /\.(png|svg|jpg|gif)$/,
+          test: /\.(png|jpg|gif)$/,
           use: [
            'file-loader'
           ]
-        }
-	      /*
-        {
-	  test: /\.wasm$/,
-	  type: "javascript/auto",
-	  loader: "file-loader",
-	  options: {
-	    publicPath: "dist/"
-	  }
-        }
-	*/
+        },
+         {
+          test: /\.(svg)$/,
+          use: [
+            {
+              loader: 'file-loader',
+              options: {
+                name: '[name].[ext]'
+              }
+            }
+          ]
+         }
       ]
     },
     resolve: {
@@ -55,7 +63,7 @@ module.exports = function (web3, network, artifacts, confidential) {
     },
     plugins: [
       new webpack.DefinePlugin({
-        'CONTRACT_ADDRESS': JSON.stringify(contract.address),
+        'CONTRACT_ADDRESS':  JSON.stringify(address || ''),
         'WS_ENDPOINT': JSON.stringify(networkConfig.wsEndpoint),
         'CONFIDENTIAL_CONTRACT': confidential
       }),

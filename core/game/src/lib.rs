@@ -1,3 +1,5 @@
+mod resolver;
+
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
@@ -10,12 +12,9 @@ extern crate rand;
 extern crate game_engine;
 extern crate game_engine_derive;
 
-// extern { pub fn log (s: &str); }
-
 use serde_json::Value;
-use std::collections::HashMap;
 use std::error::Error;
-use game_engine::{*, Game as InnerGame};
+use game_engine::*;
 use game_engine_derive::{flow, moves};
 use rand::{Rng, SeedableRng, ChaChaRng};
 
@@ -24,16 +23,6 @@ const NUM_DECK_VALUES: usize = 13;
 
 const NUM_PLAYERS: usize = 2;
 const STANDARD_BET_SIZE: u16 = 2;
-
-const STRAIGHT_FLUSH : u8 = 8;
-const QUADS : u8 = 7;
-const FULL_HOUSE : u8 = 6;
-const FLUSH : u8 = 5;
-const STRAIGHT : u8 = 4;
-const TRIPLE : u8 = 3;
-const TWO_PAIR : u8 = 2;
-const PAIR : u8 = 1;
-const HIGH : u8 = 0;
 
 /// Error types.
 quick_error! {
@@ -69,14 +58,15 @@ pub struct State {
     pub hands: Vec<Vec<Card>>,
     pub needs_action: Vec<bool>,
     pub still_in: Vec<bool>,
-    pub first_action: u16,
+    pub dealer: u16,
     pub card_table: Vec<Card>,
     pub chips: Vec<u16>,
     pub chip_table: Vec<u16>,
     pub bet_amount: u16,
     pub hand_pot: u16,
     pub hand_over: bool,
-    pub last_move: String
+    pub last_move: String,
+    pub hand_result: String
 }
 
 impl Default for State {
@@ -89,32 +79,28 @@ impl Default for State {
             hands: vec![Vec::new(), Vec::new()],
             needs_action: vec![true; NUM_PLAYERS],
             still_in: vec![true; NUM_PLAYERS],
-            first_action: 1,
+            dealer: 1,
             card_table: Vec::new(),
             chips: vec![64; NUM_PLAYERS],
             chip_table: vec![0; NUM_PLAYERS],
             bet_amount: 0,
             hand_pot: 0,
             hand_over: true,
-            last_move: String::from("New Hand")
+            last_move: String::from("New Hand"),
+            hand_result: String::from("")
         }
     }
 }
 
 // Returns a ([0-3],[0-12]) idx of the card drawn
-fn draw_cards(deck: &mut CardDeck, num_cards_needed: u8) -> Vec<Card> {
+fn draw_cards(deck: &mut CardDeck, seed: u128, num_cards_needed: u8) -> Vec<Card> {
     
-    let mut rng;
+    let mut seed_arr = [0 as u8; 32];
+    for (i, byte) in seed.to_le_bytes().iter().enumerate() {
+        seed_arr[i] = *byte
+    };
 
-    unsafe {
-
-        let mut seed_arr = [0 as u8; 32];
-        for (i, byte) in SEED.to_le_bytes().iter().enumerate() {
-            seed_arr[i] = *byte
-        };
-
-        rng = ChaChaRng::from_seed(seed_arr);
-    }
+    let mut rng = ChaChaRng::from_seed(seed_arr);
 
     let mut num_cards_drawn: u8 = 0;
     let mut card_vec = Vec::new();
@@ -169,6 +155,19 @@ fn betting_round_is_over(state: &UserState<State>) -> bool {
     true    
 }
 
+fn is_all_in_hand(state: &UserState<State>) -> bool {
+
+    for i in 0..NUM_PLAYERS {
+        
+        if state.g.still_in[i] && state.g.chips[i] == 0 {
+            return true;
+        } 
+    }
+
+    false
+
+}
+
 /**
  * Start the next betting round, ignores all in hands.
  */
@@ -192,35 +191,50 @@ fn next_betting_round(state: &mut UserState<State>) {
 }
 
 fn deal_new_hand(state: &mut UserState<State>) {
-
+    
     // Reset all player status
     state.g.needs_action = vec![true; NUM_PLAYERS];
     state.g.still_in = vec![true; NUM_PLAYERS];
     state.g.hand_over = false;
+    state.g.last_move = String::from("New Hand");
+
+    let seed = state.ctx.seed.unwrap();
 
     // Create initial hand of 2 for all players
     for player in 0..NUM_PLAYERS {
 
-        let player_hand = draw_cards(&mut state.g.cards, 2); 
+        let player_hand = draw_cards(&mut state.g.cards, seed, 2); 
         state.g.hands[player] = player_hand;
     }
     
 }
 
-fn payout_and_reset_hand(winner: usize, state: &mut UserState<State>) {
+fn payout_hand(winner: &usize, state: &mut UserState<State>) {
     
     // Pay the winner
     state.g.bet_amount = 0;
     state.g.hand_pot += state.g.chip_table.iter().sum::<u16>();
-    state.g.chips[winner] += state.g.hand_pot;
+    state.g.chips[*winner] += state.g.hand_pot;
     state.g.chip_table = vec![0; NUM_PLAYERS];
     state.g.hand_pot = 0;
+    state.g.last_move.push_str(&" - HAND OVER");
     
-    state.g.first_action = (state.g.first_action % state.ctx.num_players) + 1;
+    // Give all remaining players a turn to confirm
+    for i in 0..NUM_PLAYERS {
+        if state.g.still_in[i] {
+            state.g.needs_action[i] = true;
+        }
+    }
 
-    // Find next non-eliminated player
-    while state.g.chips[state.g.first_action as usize - 1] <= 0 {
-        state.g.first_action = (state.g.first_action % state.ctx.num_players) + 1;
+}
+
+fn reset_hand(state: &mut UserState<State>) {
+
+    // Advance the dealer
+    state.g.dealer = (state.g.dealer % state.ctx.num_players) + 1;
+
+    while state.g.chips[state.g.dealer as usize - 1] <= 0 {
+        state.g.dealer = (state.g.dealer % state.ctx.num_players) + 1;
     }
 
     // Clear the table and shuffle the deck
@@ -230,306 +244,6 @@ fn payout_and_reset_hand(winner: usize, state: &mut UserState<State>) {
     state.g.cards = [[true; NUM_DECK_VALUES]; NUM_DECK_SUITS];  
     state.g.still_in = vec![false; NUM_PLAYERS];
 
-}
-
-// Given a list of 7 card combinations, return the best hand
-// Leave an arbitrary Vec in the return value for tiebreaking
-fn evaluate_best_hand(player: usize, hand: &Vec<Card>) -> CardRanking {
-
-    let mut working_hand = hand.clone();
-    working_hand.sort_by(|a, b| b.rank.cmp(&a.rank));
-
-    let subsets = to_ranked_subsets(&working_hand);
-
-    // Just go down the ranking of hands
-    match is_straight_flush(&subsets) {
-        Some(best_hand) => return CardRanking {
-            player: player,
-            hand: STRAIGHT_FLUSH, 
-            tiebreak: vec![best_hand[0].rank]
-            },
-        None => (),
-    };
-
-    let histogram = to_histogram(&working_hand);
-
-    // Quads
-    if histogram.contains_key(&4) {
-        return CardRanking {
-            player: player,
-            hand: QUADS, 
-            tiebreak: vec![*histogram.get(&4).expect(""), *histogram.get(&1).expect("")]
-            };
-    }
-
-    // Full house
-    if histogram.contains_key(&3) && histogram.contains_key(&2) {
-        return CardRanking {
-            player: player,
-            hand: FULL_HOUSE, 
-            tiebreak: vec![*histogram.get(&3).expect(""), *histogram.get(&2).expect("")]
-            };
-    } 
-
-    match is_flush(&subsets) {
-        Some(best_hand) => {
-            let mut strength = Vec::new();
-            for card in best_hand {
-                strength.push(card.rank);   
-            }
-            return CardRanking {
-                player: player,
-                hand: FLUSH, 
-                tiebreak: strength
-            };
-        },
-        None => (),
-    };
-
-    match is_straight(&subsets) {
-        Some(best_hand) => return CardRanking {
-                player: player,
-                hand: STRAIGHT, 
-                tiebreak: vec![best_hand[0].rank]
-            },
-        None => (),
-    };
-
-    // Triple
-    if histogram.contains_key(&3) {
-        
-        // Populate the tiebreak with next 3 best cards
-        let mut trip_strength = Vec::new();
-        let triple = *histogram.get(&3).expect("");
-        trip_strength.push(triple);
-
-        for i in 0..7 {
-            
-            if working_hand[i].rank != triple {
-                trip_strength.push(working_hand[i].rank);
-            }   
-
-            // We only need 3 values, the triple and 2 next best cards.
-            if trip_strength.len() > 2 {
-                break;
-            }
-        }
-
-        return CardRanking {
-                player: player,
-                hand: TRIPLE, 
-                tiebreak: trip_strength
-            };
-
-    } else if histogram.contains_key(&2) && histogram.contains_key(&0) {
-        return CardRanking {
-                player: player,
-                hand: TWO_PAIR, 
-                tiebreak: vec![*histogram.get(&2).expect(""), *histogram.get(&0).expect(""), *histogram.get(&1).expect("")]
-            };
-    } else if histogram.contains_key(&2) {
-        
-        // Populate the tiebreak with next 3 best cards
-        let mut pair_strength = Vec::new();
-        let pair = *histogram.get(&2).expect("");
-        pair_strength.push(pair);
-
-        for i in 0..7 {
-            
-            if working_hand[i].rank != pair {
-                pair_strength.push(working_hand[i].rank);
-            }   
-
-            // We only need 4 values, the pair and 3 next best cards.
-            if pair_strength.len() > 3 {
-                break;
-            }
-        }
-
-        return CardRanking {
-                player: player,
-                hand: PAIR, 
-                tiebreak: pair_strength
-            };
-    
-    } 
-
-    // Just push the top 5
-    let mut hc_strength = Vec::new();
-    for i in 0..5 {
-        hc_strength.push(working_hand[i].rank);   
-    }
-    
-    return CardRanking {
-                player: player,
-                hand: HIGH, 
-                tiebreak: hc_strength
-            };
-
-}
-
-// Find all pairs, trips and quads. 
-// Note that this takes a sorted list of 7 cards, not subsets of 5.
-fn to_histogram(cards: &Vec<Card>) -> HashMap<u8, u8> {
-
-    // The returned hashmap contains: at index [1,2,3,4], the highest rank seen
-    // I'll reserve the index 0 for the second of a 2 pair.
-
-    // What rank are we looking for?
-    let mut current_rank = cards[0].rank;
-
-    // How many instances of the pair have we seen?
-    let mut instances : u8 = 1;
-    let mut output = HashMap::new();
-    let mut bookkeep = false;
-
-    for i in 1..7 {
-        
-        if cards[i-1].rank == cards[i].rank {
-            instances += 1;
-            if i == 6 {
-                bookkeep = true;
-            }
-        } else {
-            bookkeep = true;
-        }
-            
-        if bookkeep {
-        
-            bookkeep = false;
-        
-            match instances {
-                1 => {
-                    // Other case that matters: keep the highest single for 4+1 or 2+2+1.
-                    if !output.contains_key(&1) {
-                        output.insert(1, current_rank);
-                    }
-                }
-                2 => {
-                    // Already saw a better pair. Consider for 2 pair.
-                    if output.contains_key(&2) {
-                        if output.contains_key(&0) {
-                            // Also consider as the kicker
-                            if !output.contains_key(&1) {
-                                output.insert(1, current_rank);
-                            }
-                        } else {
-                            output.insert(0, current_rank);
-                        }
-                    } else {
-                        output.insert(2, current_rank);
-                    }
-                },
-                3 => {
-                    // We already saw a triple. This triple should be used as the pair.
-                    if output.contains_key(&3) {
-                        // But if better pair existed (3,2,3), skip it
-                        if !output.contains_key(&2) {
-                            output.insert(2, current_rank);
-                        }
-                    } else {
-                        output.insert(3, current_rank);
-                    }
-                },
-                4 => {
-                    // No possible clash for a quad.
-                    output.insert(4, current_rank);
-                },
-                _ => return HashMap::new(), // TODO error.
-            } 
-            
-            current_rank = cards[i].rank;
-            instances = 1;
-            
-        } 
-    }
-    
-    output
-}
-
-// Evaluate if a straight exists within set of of subsets
-fn is_straight(subsets: &Vec<Vec<Card>>) -> Option<Vec<Card>> {
-    
-    for hand in subsets {
-   
-        let mut has_straight = true;        
-        for i in 1..5 {
-            if hand[i-1].rank != hand[i].rank + 1 {
-                has_straight = false;
-                break;
-            }
-        }   
-        if has_straight {
-            return Some(hand.to_vec());
-        }
-    }   
-    None
-}
-
-// Evaluate if a flush exists within set of of subsets
-fn is_flush(subsets: &Vec<Vec<Card>>) -> Option<Vec<Card>> {
-    
-    for hand in subsets {
-        
-        let suit = hand[0].suit;
-        let mut has_flush = true;
-        
-        for i in 1..5 {
-            if hand[i].suit != suit {
-                has_flush = false;
-                break;
-            }
-        }   
-        if has_flush {
-            return Some(hand.to_vec());
-        }
-    }
-    
-    None
-}
-
-// Wasteful, but evaluate if a straight flush exists within set of of subsets
-fn is_straight_flush(subsets: &Vec<Vec<Card>>) -> Option<Vec<Card>> {
-    
-    for hand in subsets {
-   
-        let suit = hand[0].suit;
-        let mut has_straight_flush = true;        
-        for i in 1..5 {
-            if hand[i].suit != suit || hand[i-1].rank != hand[i].rank + 1 {
-                has_straight_flush = false;
-                break;
-            }
-        }   
-        if has_straight_flush {
-            return Some(hand.to_vec());
-        }
-    }   
-    
-    None
-}
-
-fn to_ranked_subsets(hand_of_seven: &Vec<Card>) -> Vec<Vec<Card>> {
-    
-    let mut ranked_subsets = Vec::new();
-    let mut working_cards = hand_of_seven.clone();
-    working_cards.sort_by(|a, b| b.rank.cmp(&a.rank));
-
-    // Ugly method for getting all 5 card subsets out of 7                
-    for i in 0..7 {
-        for j in (i+1)..7 {
-                
-            let mut working_hand = Vec::new();
-                
-            for k in 0..7 {
-                if i != k && j != k {
-                    working_hand.push(working_cards[k].clone());
-                }
-            }
-            ranked_subsets.push(working_hand.clone());
-        }
-    }
-    ranked_subsets
 }
 
 /// Define your moves as methods in this trait.
@@ -572,35 +286,36 @@ trait Moves {
 
                 // Standard bet/raise
                 2 => {
-                    
                     // Raise the required bet
                     if state.g.bet_amount == 0 {
                         
                         state.g.bet_amount = STANDARD_BET_SIZE;
-                        
-                        let mut move_log = String::from("Bet ");
-                        move_log.push_str(&state.g.bet_amount.to_string());
-                        state.g.last_move = move_log; 
+                        state.g.last_move = String::from(format!("Bet {}", state.g.bet_amount));
+
                     } else {
                         
                         state.g.bet_amount *= 2;
-
-                        let mut move_log = String::from("Raise ");
-                        move_log.push_str(&state.g.bet_amount.to_string());
-                        state.g.last_move = move_log;
+                        state.g.last_move = String::from(format!("Raise {}", state.g.bet_amount));
                     }
                     
-                    // Pay for it
-                    let needed_bet = state.g.bet_amount - state.g.chip_table[player_idx];
-                    state.g.chip_table[player_idx] += needed_bet;
-                    state.g.chips[player_idx] -= needed_bet;
-
                     // Since the bet has been raised, everyone who is still in the hand needs action.
+                    // Check if a player needs to go all in
                     for i in 0..NUM_PLAYERS {
                         if state.g.still_in[i] {
+
+                            if (state.g.chips[i] + state.g.chip_table[i]) <= state.g.bet_amount {
+                                state.g.bet_amount = state.g.chips[i] + state.g.chip_table[i];
+                                state.g.last_move = String::from(format!("All In {}", state.g.bet_amount));
+                            }
+
                             state.g.needs_action[i] = true;
                         }
                     }
+
+                    // Pay for it, match the bet amount
+                    let needed_bet = state.g.bet_amount - state.g.chip_table[player_idx];
+                    state.g.chip_table[player_idx] += needed_bet;
+                    state.g.chips[player_idx] -= needed_bet;
 
                     state.g.needs_action[player_idx] = false;
                     return Ok(());
@@ -610,21 +325,28 @@ trait Moves {
                 // All in
                 3 => {
                     
-                    // TODO: Handle case when others should actually be all in, and we don't bet the full amount
+                    // Try betting your whole stack.
                     state.g.bet_amount = state.g.chips[player_idx];
-                    state.g.chip_table[player_idx] += state.g.chips[player_idx];
-                    state.g.chips[player_idx] = 0;
 
                     // Since the bet has been raised, everyone who is still in the hand needs action.
+                    // Check if a different player needs to go all in
                     for i in 0..NUM_PLAYERS {
                         if state.g.still_in[i] {
+
+                            if (state.g.chips[i] + state.g.chip_table[i]) <= state.g.bet_amount {
+                                state.g.bet_amount = state.g.chips[i] + state.g.chip_table[i];
+                            }
+
                             state.g.needs_action[i] = true;
                         }
                     }
+                    
+                    // Needed in case someone else is pushed all in.
+                    let needed_bet = state.g.bet_amount - state.g.chip_table[player_idx];
+                    state.g.chip_table[player_idx] += needed_bet;
+                    state.g.chips[player_idx] -= needed_bet;
 
-                    let mut move_log = String::from("All In ");
-                    move_log.push_str(&state.g.bet_amount.to_string());
-                    state.g.last_move = move_log;
+                    state.g.last_move = String::from(format!("All In {}", state.g.bet_amount));
                     state.g.needs_action[player_idx] = false;
                     return Ok(());
 
@@ -643,6 +365,20 @@ trait Moves {
                     return Ok(());
                 },
 
+                // Confirm hand and proceed
+                99 => {
+
+                    state.g.last_move = String::from("HAND OVER");
+                    state.g.needs_action[player_idx] = false;
+
+                    if betting_round_is_over(state) {
+                        reset_hand(state);
+                    }
+
+                    return Ok(());
+
+                }
+
                 _ => return Err(Box::new(Errors::InvalidMove)),
             }
 
@@ -656,7 +392,7 @@ trait Moves {
 #[flow]
 trait Flow {
 
-    fn initial_state(&self) -> State {    
+    fn initial_state(&self, seed: Option<u128>) -> State {    
     
         let initial_deck = [[true; NUM_DECK_VALUES]; NUM_DECK_SUITS];
 
@@ -665,20 +401,23 @@ trait Flow {
             hands: vec![Vec::new(), Vec::new()],
             needs_action: vec![true; NUM_PLAYERS as usize],
             still_in: vec![true; NUM_PLAYERS as usize],
-            first_action: 1,
+            dealer: 1,
             card_table: Vec::new(),
             chips: vec![64; NUM_PLAYERS as usize],
             chip_table: vec![0; NUM_PLAYERS as usize],
             bet_amount: 0,
             hand_pot: 0,
             hand_over: true,
-            last_move: String::from("New Hand")
+            last_move: String::from("New Hand"),
+            hand_result: String::from("")
         }
 
     }
 
     fn on_turn_begin(&self, state: &mut UserState<State>) 
         -> Result<(), Box<Error>> {
+
+        let seed = state.ctx.seed.unwrap();
 
         if state.g.hand_over {
             deal_new_hand(state);
@@ -690,16 +429,19 @@ trait Flow {
 
             // Deal cards if needed
             match state.g.card_table.len() {
+                // Flop
                 0 => {
-                    state.g.card_table = draw_cards(&mut state.g.cards, 3);
+                    state.g.card_table = draw_cards(&mut state.g.cards, seed, 3);
                     next_betting_round(state);
                 },
+                // Turn
                 3 => {
-                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, 1));
+                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, 1));
                     next_betting_round(state);
                 },
+                // River
                 4 => {
-                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, 1));
+                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, 1));
                     next_betting_round(state);
                 },
                 _ => return Err(Box::new(Errors::InvalidMove)),
@@ -712,55 +454,76 @@ trait Flow {
 
     fn on_move(&self, state: &mut UserState<State>, _: &Move) -> Result<(), Box<Error>> {
 
+        // Manually advance the random seed
+        let bumpable_seed = state.ctx.seed.expect("");
+        state.ctx.seed = Some(bumpable_seed + 1);
+
         // End hand via fold
         let (is_over, fold_winner) = hand_is_over_folded(state);
         if is_over {
-            payout_and_reset_hand(fold_winner, state);
+            payout_hand(&fold_winner, state);
+            state.g.hand_result = String::from(format!("Player {} wins by fold", fold_winner + 1));
             return Ok(());
         }
         
         // End hand via evaluation
-        if betting_round_is_over(state) && state.g.card_table.len() == 5 {
+        if betting_round_is_over(state) {
             
-            // TODO: hand resolution
-            let mut winner = CardRanking{
-                player: 0,
-                hand: 0,
-                tiebreak: vec![0]
-                };
+            // Automatically deal all cards if a player has no chips
+            if is_all_in_hand(state) && state.g.card_table.len() < 5 {
+                let seed = state.ctx.seed.unwrap();
+                let cards_needed = 5 - state.g.card_table.len() as u8;
+                state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, cards_needed));
+            }
+            
+            if state.g.card_table.len() == 5 {
+            
+                // Store the winning hand
+                let mut winner = CardRanking{
+                    player: 0,
+                    hand: 0,
+                    tiebreak: vec![0]
+                    };
 
-            for i in 0..(state.ctx.num_players as usize) {
-                
-                if state.g.still_in[i] {
+                for i in 0..(state.ctx.num_players as usize) {
                     
-                    state.g.hands[i].extend_from_slice(&state.g.card_table);
-                    let hand_rank = evaluate_best_hand(i, &state.g.hands[i].clone());
-                    
-                    println!("Player {} best hand is {}-{:?}", hand_rank.player, hand_rank.hand, hand_rank.tiebreak);
+                    if state.g.still_in[i] {
+                        
+                        let mut working_hand = state.g.hands[i].clone();
+                        working_hand.extend_from_slice(&state.g.card_table);
+                        let hand_rank = resolver::evaluate_best_hand(i, &working_hand);
+                        
+                        println!("Player {} best hand is {}-{:?}", hand_rank.player, 
+                            resolver::hand_to_string(&hand_rank.hand), hand_rank.tiebreak);
 
-                    if hand_rank.hand > winner.hand {
-                        winner = hand_rank;
-                    } else if hand_rank.hand == winner.hand {
-                        println!("Need tiebreaker to resolve hand");
-                        // Tiebreakers
-                        for j in 0..hand_rank.tiebreak.len() {
-                            if hand_rank.tiebreak[j] > winner.tiebreak[j] {
-                                winner = hand_rank;
-                                break;
-                            } else if hand_rank.tiebreak[j] < winner.tiebreak[j] {
-                                break;
+                        if hand_rank.hand > winner.hand {
+                            winner = hand_rank;
+                        } else if hand_rank.hand == winner.hand {
+
+                            // Tiebreakers
+                            for j in 0..hand_rank.tiebreak.len() {
+                                if hand_rank.tiebreak[j] > winner.tiebreak[j] {
+                                    winner = hand_rank;
+                                    break;
+                                } else if hand_rank.tiebreak[j] < winner.tiebreak[j] {
+                                    break;
+                                }
                             }
+                            
+                            // TODO: Hand is completely tied, do a split pot.
+                        
                         }
                         
-                        // TODO: Hand is completely tied, do a split pot.
-                    
                     }
-                    
                 }
-            }
 
-            println!("Hand was won by player {} with hand ranking {}", winner.player, winner.hand);
-            payout_and_reset_hand(winner.player, state);
+                payout_hand(&winner.player, state);
+
+                let hand_label = resolver::hand_to_string(&winner.hand);
+                println!("Hand was won by player {} with hand ranking {}", winner.player + 1, hand_label);
+                state.g.hand_result = String::from(format!("Player {} wins with {}", winner.player + 1, hand_label));
+
+            }
 
         }
 
@@ -771,18 +534,17 @@ trait Flow {
 
         let mut next_to_play = Vec::new();
 
-        if state.ctx.turn == 0 {
-            return Some(vec![1]);
-        }
+        let action_player = match state.ctx.action_players {
+            Some(ref players) => players[0],
+            None => 1,
+        };
 
-        let action_player = state.ctx.action_players.clone().expect("No acting players found")[0];
         let mut next_candidate = (action_player + 1) % state.ctx.num_players;
-
         let mut move_counter = 0;
 
         // Not 0-indexed, required to be 1 or 2
         if state.g.hand_over || betting_round_is_over(state) {
-            next_to_play.push(state.g.first_action);
+            next_to_play.push(state.g.dealer);
             return Some(next_to_play);
         } 
 

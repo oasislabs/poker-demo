@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "bindings": "^1.4.0",
+    "cardsJS": "^1.1.1",
     "chalk": "^2.4.1",
     "inherits": "^2.0.3",
     "mkdirp": "^0.5.1",
