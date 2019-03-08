@@ -115,7 +115,7 @@ fn draw_cards(deck: &mut CardDeck, seed: u128, num_cards_needed: u8) -> Vec<Card
             deck[card_suit][card_rank] = false;
             card_vec.push(Card {
                 suit: card_suit as u8, 
-                rank: card_rank as u8 + 1
+                rank: card_rank as u8
             });
         }
     }
@@ -250,7 +250,7 @@ fn reset_hand(state: &mut UserState<State>) {
 #[moves]
 trait Moves {
 
-    fn poker_move(state: &mut UserState<State>, args: &Option<Value>)
+    fn poker_move(state: &mut UserState<State>, _player_id: u16, args: &Option<Value>)
                 -> Result<(), Box<Error>> {
 
         if let Some(value) = args {
@@ -392,7 +392,7 @@ trait Moves {
 #[flow]
 trait Flow {
 
-    fn initial_state(&self, seed: Option<u128>) -> State {    
+    fn initial_state(&self, _seed: Option<u128>) -> State {    
     
         let initial_deck = [[true; NUM_DECK_VALUES]; NUM_DECK_SUITS];
 
