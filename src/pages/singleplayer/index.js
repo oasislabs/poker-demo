@@ -14,8 +14,12 @@ import bindingsPromise from '../../../core/client/';
 import createProxyBuilder from 'oasis-game-client-proxy';
 import { Client } from 'oasis-game-components';
 
-import Board from '../../components/board';
-import Logo from '../../assets/logo.svg';
+import Board from '../../components/Board/Board';
+import Footer from '../../components/Footer/Footer';
+import GameLogo from '../../assets/2x/logo_poker_hd.png';
+import BrandLogo from '../../assets/OasisLabs_Vertical_Logo_Red_RGB.png';
+
+import '../../assets/index.css';
 
 window.bindingsPromise = bindingsPromise;
 
@@ -63,14 +67,12 @@ const Singleplayer = () => {
 
       return (
         <div className="code flex flex-column w-100 h-100 items-center bg-light-gray">
-          <h1 className="f1 lh-title mb1">Poker</h1>
-          <div class="flex justify-center">
-            <h4 className="pt0 mt3 mr2">with</h4>
-            <img className="h2" src={Logo} />
-          </div>
+          <img className="GameLogo" src={GameLogo} />
+          <img className ="BrandLogo" src={BrandLogo} />
           <PlayerOne />
           <br/>
           <PlayerTwo />
+          <Footer />
         </div>
       );
     }} />

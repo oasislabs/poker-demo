@@ -1,8 +1,8 @@
 extern crate core;
-extern crate game_contract;
+extern crate oasis_game_contract;
 
 use core::Game;
-use game_contract::gameserver::*;
+use oasis_game_contract::gameserver::*;
 
 use owasm_std::logger::debug;
 
@@ -19,18 +19,19 @@ impl ServerFactory {
 
 #[owasm_abi_derive::contract]
 trait GameServerContract {
-    fn create(&mut self, _players: Vec<u8>) {
+    fn create(&mut self, _tokens: Vec<u8>) {
         let mut server = ServerFactory::create();
-        let id = server.create(_players.clone());
-        self.NewGame(id, _players);
+        let id = server.create(_tokens.clone());
+        self.NewGame(id, _tokens);
     }
 
-    fn ready(&mut self, _game_id: u64, _player_id: u64, token: Vec<u8>, _entropy: Vec<u8>) {
+    fn ready(&mut self, _game_id: u64, token: Vec<u8>, _entropy: Vec<u8>) -> u64 {
         let mut server = ServerFactory::create();
-        let started = server.ready(_game_id, _player_id, token, &mut _entropy.clone()).expect("Could not set ready status");
+        let (player_id, started) = server.ready(_game_id, token, &mut _entropy.clone()).expect("Could not set ready status");
         if started {
             self.GameStarted(_game_id);
         }
+        player_id as u64
     }
 
     fn sendAction(&mut self, _game_id: u64,  _player_id: u64, _game_move: Vec<u8>) {
@@ -41,11 +42,10 @@ trait GameServerContract {
     }
 
     #[constant]
-    fn getState(&mut self, _game_id: u64, _player_id: u64) -> Vec<u8> {
+    fn getState(&mut self, _game_id: u64, _player_id: u64) {
         let mut server = ServerFactory::create();
         let state = server.get_state(_game_id, _player_id).expect("Could not get state");
-        state
-
+        self.GameState(state);
     }
 
     #[constant]
@@ -62,6 +62,8 @@ trait GameServerContract {
 
     #[event]
     fn GameEvent(&mut self, indexed_id: u64, _id: u64);
+    #[event]
+    fn GameState(&mut self, _state: Vec<u8>);
     #[event]
     fn NewGame(&mut self, _id: u64, _players: Vec<u8>);
     #[event]

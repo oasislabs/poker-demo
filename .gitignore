@@ -5,8 +5,8 @@
 
 # production
 /build
-/dist
-/core/client/bindings
+# /dist
+# /core/client/bindings
 
 # misc
 .DS_Store

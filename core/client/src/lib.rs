@@ -1,15 +1,15 @@
 extern crate console_error_panic_hook;
 extern crate wasm_bindgen;
 
-extern crate game_engine;
-extern crate client_proxy;
+extern crate oasis_game_core;
+extern crate oasis_game_client_proxy;
 extern crate core;
 
 use std::panic;
 
 use wasm_bindgen::prelude::*;
-use client_proxy::{create_proxy, Proxy};
-use game_engine::StoreFactory;
+use oasis_game_client_proxy::{create_proxy, Proxy};
+use oasis_game_core::StoreFactory;
 use core::Game;
 
 #[wasm_bindgen]

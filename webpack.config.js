@@ -35,22 +35,16 @@ module.exports = function (web3, network, artifacts, confidential) {
           use: [ 'style-loader', 'css-loader' ]
         },
         {
-          test: /\.(png|jpg|gif)$/,
-          use: [
-           'file-loader'
-          ]
-        },
-         {
-          test: /\.(svg)$/,
-          use: [
-            {
-              loader: 'file-loader',
-              options: {
-                name: '[name].[ext]'
-              }
-            }
-          ]
-         }
+         test: /\.(svg|png|jpg|gif)$/,
+         use: [
+           {
+             loader: 'file-loader',
+             options: {
+               name: '[name].[ext]'
+             }
+           }
+         ]
+        }
       ]
     },
     resolve: {
@@ -58,7 +52,7 @@ module.exports = function (web3, network, artifacts, confidential) {
     },
     output: {
       path: __dirname + '/dist',
-      publicPath: '/',
+      publicPath: './',
       filename: '[name].bundle.js'
     },
     plugins: [

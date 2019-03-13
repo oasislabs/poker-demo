@@ -9,13 +9,13 @@ extern crate quick_error;
 
 extern crate rand;
 
-extern crate game_engine;
-extern crate game_engine_derive;
+extern crate oasis_game_core;
+extern crate oasis_game_core_derive;
 
 use serde_json::Value;
 use std::error::Error;
-use game_engine::*;
-use game_engine_derive::{flow, moves};
+use oasis_game_core::*;
+use oasis_game_core_derive::{flow, moves};
 use rand::{Rng, SeedableRng, ChaChaRng};
 
 const NUM_DECK_SUITS: usize = 4;
@@ -250,7 +250,7 @@ fn reset_hand(state: &mut UserState<State>) {
 #[moves]
 trait Moves {
 
-    fn poker_move(state: &mut UserState<State>, args: &Option<Value>)
+    fn poker_move(state: &mut UserState<State>, player_id: u16, args: &Option<Value>)
                 -> Result<(), Box<Error>> {
 
         if let Some(value) = args {
@@ -393,7 +393,7 @@ trait Moves {
 #[flow]
 trait Flow {
 
-    fn initial_state(&self) -> State {    
+    fn initial_state(&self, seed: Option<u128>) -> State {    
     
         let initial_deck = [[true; NUM_DECK_VALUES]; NUM_DECK_SUITS];
 
@@ -595,6 +595,10 @@ trait Flow {
 
         None
 
+    }
+
+    fn optimistic_update(&self,  state: &UserState<State>, game_move: &Move) -> bool {
+        false
     }
 }
 
