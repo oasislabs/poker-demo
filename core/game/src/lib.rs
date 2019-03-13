@@ -54,7 +54,7 @@ pub struct CardRanking {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct State {
-    pub cards: CardDeck,
+    pub cards: Option<CardDeck>,
     pub hands: Vec<Vec<Card>>,
     pub needs_action: Vec<bool>,
     pub still_in: Vec<bool>,
@@ -75,7 +75,7 @@ impl Default for State {
     fn default() -> Self {
         
         State {
-            cards: [[true; NUM_DECK_VALUES]; NUM_DECK_SUITS],
+            cards: Some([[true; NUM_DECK_VALUES]; NUM_DECK_SUITS]),
             hands: vec![Vec::new(), Vec::new()],
             needs_action: vec![true; NUM_PLAYERS],
             still_in: vec![true; NUM_PLAYERS],
@@ -200,10 +200,12 @@ fn deal_new_hand(state: &mut UserState<State>) {
 
     let seed = state.ctx.seed.unwrap();
 
+    let cards = &mut state.g.cards.unwrap();
+
     // Create initial hand of 2 for all players
     for player in 0..NUM_PLAYERS {
 
-        let player_hand = draw_cards(&mut state.g.cards, seed, 2); 
+        let player_hand = draw_cards(cards, seed, 2);
         state.g.hands[player] = player_hand;
     }
     
@@ -241,7 +243,7 @@ fn reset_hand(state: &mut UserState<State>) {
     state.g.hand_over = true;
     state.g.card_table = Vec::new();
     state.g.hands = vec![Vec::new(), Vec::new()];
-    state.g.cards = [[true; NUM_DECK_VALUES]; NUM_DECK_SUITS];  
+    state.g.cards = Some([[true; NUM_DECK_VALUES]; NUM_DECK_SUITS]);
     state.g.still_in = vec![false; NUM_PLAYERS];
 
 }
@@ -394,7 +396,7 @@ trait Flow {
 
     fn initial_state(&self, seed: Option<u128>) -> State {    
     
-        let initial_deck = [[true; NUM_DECK_VALUES]; NUM_DECK_SUITS];
+        let initial_deck = Some([[true; NUM_DECK_VALUES]; NUM_DECK_SUITS]);
 
         State {
             cards: initial_deck,
@@ -431,17 +433,17 @@ trait Flow {
             match state.g.card_table.len() {
                 // Flop
                 0 => {
-                    state.g.card_table = draw_cards(&mut state.g.cards, seed, 3);
+                    state.g.card_table = draw_cards(&mut state.g.cards.unwrap(), seed, 3);
                     next_betting_round(state);
                 },
                 // Turn
                 3 => {
-                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, 1));
+                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards.unwrap(), seed, 1));
                     next_betting_round(state);
                 },
                 // River
                 4 => {
-                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, 1));
+                    state.g.card_table.append(&mut draw_cards(&mut state.g.cards.unwrap(), seed, 1));
                     next_betting_round(state);
                 },
                 _ => return Err(Box::new(Errors::InvalidMove)),
@@ -473,7 +475,7 @@ trait Flow {
             if is_all_in_hand(state) && state.g.card_table.len() < 5 {
                 let seed = state.ctx.seed.unwrap();
                 let cards_needed = 5 - state.g.card_table.len() as u8;
-                state.g.card_table.append(&mut draw_cards(&mut state.g.cards, seed, cards_needed));
+                state.g.card_table.append(&mut draw_cards(&mut state.g.cards.unwrap(), seed, cards_needed));
             }
             
             if state.g.card_table.len() == 5 {
@@ -598,6 +600,19 @@ trait Flow {
 
     fn optimistic_update(&self,  state: &UserState<State>, game_move: &Move) -> bool {
         false
+    }
+
+    fn player_filter(&self) -> Option<fn(&State, u16) -> State> {
+        Some(|state, player_id| {
+            let mut new_state = state.clone();
+            new_state.cards = None;
+            new_state.hands = match player_id {
+                1 => new_state.hands[..1].into(),
+                2 => new_state.hands[1..].into(),
+                _ => vec![]
+            };
+            new_state
+        })
     }
 }
 

@@ -13,7 +13,7 @@ oasis-game-client-proxy = "0.9.0"
 core = { path = "../game" }
 
 [dependencies.wasm-bindgen]
-version = "= 0.2.38"
+version = "= 0.2.37"
 features = ["serde-serialize"]
 
 [profile.release]
