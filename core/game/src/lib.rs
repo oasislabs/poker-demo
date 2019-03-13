@@ -286,7 +286,6 @@ trait Moves {
 
                 // Standard bet/raise
                 2 => {
-
                     // Raise the required bet
                     if state.g.bet_amount == 0 {
                         
