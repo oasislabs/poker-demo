@@ -15,7 +15,7 @@ app.get('/singleplayer-bot', (req, res) => {
   res.sendFile('singleplayer-bot.html', { root: './dist' })
 })
 
-app.get('/multiplayer/:gameId/:privateKey?', (req, res) => {
+app.get('/multiplayer', (req, res) => {
   res.sendFile('multiplayer.html', { root: './dist' })
 })
 
