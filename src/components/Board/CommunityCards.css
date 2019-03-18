@@ -1,0 +1,17 @@
+.CommunityCards {
+  width: 555px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.CommunityCards__flop {
+  display: inline-block;
+}
+
+.CommunityCards__turn {
+  display: inline-block;
+}
+
+.CommunityCards__river {
+  display: inline-block;
+}

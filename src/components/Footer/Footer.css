@@ -1,0 +1,20 @@
+.Footer {
+  position: fixed;
+  bottom: 0;
+  height: 40px;
+  width: 100%;
+  background-color: #a2a2a2;
+  display: table;
+}
+
+.Footer__text {
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+  color: white;
+}
+
+.Footer__link {
+  color: #0e0e0e;
+  text-decoration: underline;
+}

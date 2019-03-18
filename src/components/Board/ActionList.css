@@ -1,0 +1,8 @@
+.ActionList {
+  display: flex;
+  margin-top: 20px;
+}
+
+.ActionList__item {
+  margin: 0px 10px;
+}

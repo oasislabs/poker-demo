@@ -1,0 +1,8 @@
+.CardList {
+    
+}
+
+.CardList__item {
+  display: inline-block;
+  margin: 0px 2px;
+}

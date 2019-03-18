@@ -1,0 +1,25 @@
+.Background {
+  position: relative;
+  width: 640px;
+  height: 400px;
+  background-image: url('../../assets/2x/poker_board.png');
+  background-size: cover;
+}
+
+.Background .CommunityCards {
+  position: absolute;
+  top: 40px;
+  left: 45px;
+}
+
+.Background .PlayerCards {
+  position: absolute;
+  bottom: 30px;
+  left: 60px;
+}
+
+.Background .OpponentCards {
+ position: absolute;
+ bottom: 30px;
+ right: 60px; 
+}

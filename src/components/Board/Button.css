@@ -1,0 +1,15 @@
+.Button {
+  width: 120px;
+  height: 50px;
+  background-image: url('../../assets/2x/ui_button.png');
+  background-size: cover;
+  background-color: transparent;
+  border: none;
+  font-size: 1.2em;
+  color: white;
+}
+
+.Button:hover {
+  cursor: pointer;
+  opacity: 0.8;
+}

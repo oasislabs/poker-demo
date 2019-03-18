@@ -1,0 +1,8 @@
+.InformationList {
+  display: flex;
+  margin-top: 40px;
+}
+
+.InformationList__item {
+  margin: 0px 20px;
+}
