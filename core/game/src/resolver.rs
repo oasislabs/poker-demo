@@ -43,13 +43,28 @@ pub fn evaluate_best_hand(player: usize, hand: &Vec<Card>) -> CardRanking {
 
     // Just go down the ranking of hands
     match is_straight_flush(&subsets) {
-        Some(best_hand) => return CardRanking {
+        Some(best_hand) => {
+            
+            // The A-high straight is: [12, 3, 2, 1, 0].
+            // But it is the weakest straight, give it strength of 3 (a 5 high)
+            if best_hand[0].rank == 12 && best_hand[1].rank == 3 {
+                return CardRanking {
+                    player: player,
+                    hand: STRAIGHT_FLUSH, 
+                    tiebreak: vec![best_hand[1].rank]
+                }
+            }
+        
+        return CardRanking {
             player: player,
             hand: STRAIGHT_FLUSH, 
             tiebreak: vec![best_hand[0].rank]
-            },
+            }
+        
+        },
         None => (),
     };
+
 
     let histogram = to_histogram(&working_hand);
 
@@ -87,11 +102,24 @@ pub fn evaluate_best_hand(player: usize, hand: &Vec<Card>) -> CardRanking {
     };
 
     match is_straight(&subsets) {
-        Some(best_hand) => return CardRanking {
+        Some(best_hand) => {
+        
+            // The A-high straight is: [12, 3, 2, 1, 0].
+            // But it is the weakest straight, give it strength of 3 (a 5 high)
+            if best_hand[0].rank == 12 && best_hand[1].rank == 3 {
+                return CardRanking {
+                    player: player,
+                    hand: STRAIGHT, 
+                    tiebreak: vec![best_hand[1].rank]
+                }
+            }
+        
+            return CardRanking {
                 player: player,
                 hand: STRAIGHT, 
                 tiebreak: vec![best_hand[0].rank]
-            },
+            }
+        },
         None => (),
     };
 
@@ -256,6 +284,12 @@ fn is_straight(subsets: &Vec<Vec<Card>>) -> Option<Vec<Card>> {
    
         let mut has_straight = true;        
         for i in 1..5 {
+
+            // The A-high straight is: [12, 3, 2, 1, 0]
+            if hand[i-1].rank == 12 && hand[i].rank == 3 {
+                continue;
+            }
+
             if hand[i-1].rank != hand[i].rank + 1 {
                 has_straight = false;
                 break;
@@ -298,6 +332,12 @@ fn is_straight_flush(subsets: &Vec<Vec<Card>>) -> Option<Vec<Card>> {
         let suit = hand[0].suit;
         let mut has_straight_flush = true;        
         for i in 1..5 {
+
+            // The A-high straight is: [12, 3, 2, 1, 0]
+            if hand[i].suit == suit && hand[i-1].rank == 12 && hand[i].rank == 3 {
+                continue;
+            }
+
             if hand[i].suit != suit || hand[i-1].rank != hand[i].rank + 1 {
                 has_straight_flush = false;
                 break;
