@@ -30,20 +30,20 @@ const Card = function ({ rank, suit }) {
 
   let rankString = '';
   switch (rank) {
-    case 13: 
+    case 12: 
       rankString = 'A';
       break;
-    case 12: 
+    case 11: 
       rankString = 'K';
       break;
-    case 11: 
+    case 10: 
       rankString = 'Q';
       break;
-    case 10: 
+    case 9: 
       rankString = 'J';
       break;
     default:
-      rankString = (rank + 1).toString()
+      rankString = (rank + 2).toString()
       break;
   }
 
@@ -54,7 +54,7 @@ const Card = function ({ rank, suit }) {
 
 Card.propTypes = {
   suit: PropTypes.oneOf([0,1,2,3]),
-  rank: PropTypes.oneOf([1,2,3,4,5,6,7,8,9,10,11,12,13]),
+  rank: PropTypes.oneOf([0,1,2,3,4,5,6,7,8,9,10,11,12]),
 }
 
 export default Card;
