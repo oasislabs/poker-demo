@@ -1,8 +1,8 @@
 # Poker: An Oasis Game with Randomness and Non-Round Robin Turn Order
-This example game was made using the [Oasis game box](https://github.com/oasis-game-framework/game-box). This is the most complex of the sample games, and if you're unfamiliar with the framework, it's best to first take a look at the following, simpler examples:
-* [Tic Tac Toe](https://github.com/oasis-game-framework/game-box): This Truffle box gives a more detailed overview of the game project, and describes how to get started with your own game.
-* [Connect Four](https://github.com/oasis-game-framework/connect-four-demo): This repository provides an example of how the game framework's Truffle box can be extended into a (slightly) more sophisticated game.
-* [Battleship](https://github.com/oasis-game-framework/battleship-demo): This game shows an example of how secret state and initial randomness can be incorporated into your game.
+This example game was made using the [Oasis game box](https://github.com/oasislabs/game-box). This is the most complex of the sample games, and if you're unfamiliar with the framework, it's best to first take a look at the following, simpler examples:
+* [Tic Tac Toe](https://github.com/oasislabs/game-box): This Truffle box gives a more detailed overview of the game project, and describes how to get started with your own game.
+* [Connect Four](https://github.com/oasislabs/connect-four-demo): This repository provides an example of how the game framework's Truffle box can be extended into a (slightly) more sophisticated game.
+* [Battleship](https://github.com/oasislabs/battleship-demo): This game shows an example of how secret state and initial randomness can be incorporated into your game.
 
 Once you're familiar with the basics, this project combines everything from all the other games demonstrates how to create an Oasis game that takes advantage of confidential contract state. Poker requires that the deck be kept secret from both the players, while players' hands are confidential only to other players. In addition, the game supports multiple move options, non-round robin turns, and makes full use of the randomness API in the Oasis game framework. Are you ready to get started?
 
