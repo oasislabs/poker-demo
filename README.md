@@ -15,7 +15,7 @@ This game is designed to be used from within your Contract Kit container. If you
    * `docker run -v "$PWD":/project -p8545:8545 -p8546:8546 -p8080:8080 -it oasislabs/contract-kit:latest /bin/bash`
    
 The remaining steps are meant to be run in a shell inside your new `oasislabs/contract-kit` container.
-1. Install `wasm-bindgen`: `cargo install wasm-bindgen-cli` (this can take some time).
+1. Install `wasm-bindgen`: `cargo install wasm-bindgen-cli --vers=0.2.37` (this can take some time).
 2. Clone this repository: `git clone https://github.com/oasislabs/poker-demo`
 3. (optionally) In a separate window, start a local Parity instance for debugging: `cd poker-demo && ./scripts/start-parity.sh`
    * (Note: This will launch Parity with very loose network settings -- feel free to restrict those to localhost if you don't want to test with other machines on your local network)
