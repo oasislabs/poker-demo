@@ -18,8 +18,6 @@ The remaining steps are meant to be run in a shell inside your new `oasislabs/co
 1. Install `wasm-bindgen`: `cargo install wasm-bindgen-cli --vers=0.2.37` (this can take some time).
 2. Clone this repository: `git clone https://github.com/oasislabs/poker-demo`
 3. NPM installation: `cd poker-demo && npm i`
-3. (optionally) In a separate window, start a local Parity instance for debugging: `cd poker-demo && ./scripts/start-parity.sh`
-   * (Note: This will launch Parity with very loose network settings -- feel free to restrict those to localhost if you don't want to test with other machines on your local network)
 
 ### Specifying credentials
 If you want to deploy on Oasis, make sure your mnemonic is defined in `secrets.json`. This file is not tracked by your repo, but it's imported by Truffle during migration and frontend compilation. The default Contract Kit mnemonic is already there, ready to use.
