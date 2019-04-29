@@ -25,39 +25,5 @@ The remaining steps are meant to be run in a shell inside your new `oasislabs/co
 If you want to deploy on Oasis, make sure your mnemonic is defined in `secrets.json`. This file is not tracked by your repo, but it's imported by Truffle during migration and frontend compilation. The default Contract Kit mnemonic is already there, ready to use.
 
 ## Building + Migrating
-Building is separated into three stages, each with a corresponding build script. From the repo root:
-1. Build Rust dependencies: `./scripts/build-crates.sh`
-2. Migrate contracts onto a testnet: `truffle migrate --network (your network)`
-3. Build frontend components: `truffle exec ./scripts/build-frontend.js --network (your network)`
 
-If deploying on a local Parity instance, the network name will be `development`. It's important that (3) always be performed after (2), and with `truffle exec`, because it depends on the address of your deployed contract, which Truffle automatically determines.
-
-Once everything is built and migrated, you're ready to play!
-
-## Playing
-This box currently contains the following game modes:
-1. Singleplayer: Two boards are rendered on the same screen, and a single user makes moves for
-   both. This is useful for debugging your core game logic.
-2. Two Player (On-Chain): Production time! This game mode allows for multiple players, or bots,
-   to compete using a game contract running on Oasis.
-
-### Singleplayer
-To debug your game in singleplayer mode, first complete the installation steps above, then perform
-the following steps:
-1. `npm start` (you can do this in another shell)
-2. Navigate to `localhost:8080/singleplayer` in your browser (or whichever port you've chosen to use)
-
-This mode launches a local game server on port 8080 (note: this is an HTTP server, not an Ekiden 
-gateway -- there is no blockchain involved in this game mode).
-
-### Multiplayer
-To play a complete end-to-end, on-chain game with friends, there are a few more steps:
-1. Create a new game on the testnet: `truffle exec ./scripts/create.js --network (your network) --players (address1),(address2)... --seed (a seed number)`
-   * (The addresses you list will be assigned player IDs in order, so `address1` becomes Player 1, and so on. Make sure these addresses have already been funded!)
- 2. `npm start` (you can do this in another shell)
- 3.  Navigate to `localhost:8080/multiplayer/(game id)`
- 
-If your players are using different computers, make sure that *both* the web server *and* the testnet are accessible to all parties -- this might require updating the networking configuration in the `config` section of `truffle-config.js`.
-
-If you're using the Oasis testnet, you will not need to update any networking configuration.
-
+Please refer to our most up to date documentation in the [Oasis Game Box](https://github.com/oasislabs/game-box#building--migrating) repository. 
